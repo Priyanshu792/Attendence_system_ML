@@ -30,11 +30,15 @@ class FaceDetector:
     def detect_faces(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Detect faces in frame and return list of (x,y,w,h) coordinates"""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.equalizeHist(gray)
+        
         faces = self.face_cascade.detectMultiScale(
             gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(30, 30)
+            scaleFactor=1.1,        # More gradual scaling
+            minNeighbors=5,         # Reduced to detect more faces
+            minSize=(30, 30),       # Smaller minimum size
+            maxSize=(300, 300),     # Add maximum size
+            flags=cv2.CASCADE_SCALE_IMAGE
         )
         return faces
 
@@ -42,20 +46,45 @@ class FaceDetector:
         """Predict identity of face in frame"""
         if not self.model_loaded:
             return -1, 0.0
+            
         x, y, w, h = face_coords
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         roi = gray[y:y+h, x:x+w]
         
+        # Normalize ROI
+        roi = cv2.equalizeHist(roi)
+        roi = cv2.resize(roi, (200, 200))
+        
         try:
             id_, confidence = self.recognizer.predict(roi)
-            return id_, confidence
+            # Confidence is 0-100 where lower is better in OpenCV
+            confidence = 100 - min(100, confidence)
+            return int(id_), confidence
         except Exception as e:
             logging.error(f"Prediction error: {e}")
             return -1, 0.0
 
     def train_recognizer(self, faces: List[np.ndarray], labels: List[int]):
         """Train the face recognizer"""
-        self.recognizer.train(faces, np.array(labels))
+        processed_faces = []
+        for face in faces:
+            if face is not None:
+                face = cv2.equalizeHist(face)
+                face = cv2.resize(face, (200, 200))
+                processed_faces.append(face)
+            
+        if not processed_faces:
+            raise ValueError("No valid faces for training")
+            
+        self.recognizer = cv2.face.LBPHFaceRecognizer_create(
+            radius=1,           # Smaller radius for more detail
+            neighbors=8,        # Standard number of points
+            grid_x=8,          # Standard grid
+            grid_y=8,          # Standard grid
+            threshold=100.0     # Higher threshold for better matching
+        )
+        self.recognizer.train(processed_faces, np.array(labels))
+        self.model_loaded = True
         
     def save_trained_model(self, path: str = None):
         """Save trained model to file"""

@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 from datetime import datetime
 import logging
 from tkinter import messagebox
+import time  # Add this import at the top
 
 from src.core.base_window import BaseWindow
 from src.utils.face_utils import FaceDetector
@@ -19,6 +20,7 @@ class RecognitionView(BaseWindow):
         self.cap = None
         self.is_recognizing = False
         self._current_image = None
+        self.recognition_times = []  # Add this line
         self.setup_ui()
         self.container.bind("<Destroy>", lambda e: self.cleanup())
 
@@ -35,6 +37,14 @@ class RecognitionView(BaseWindow):
             font=("Helvetica", 14)
         )
         self.status_label.pack(pady=10)
+        
+        # Add recognition time label after status label
+        self.time_label = ctk.CTkLabel(
+            control_panel,
+            text="Recognition time: -- ms",
+            font=("Helvetica", 12)
+        )
+        self.time_label.pack(pady=5)
         
         # Control buttons
         self.start_btn = ctk.CTkButton(
@@ -87,6 +97,9 @@ class RecognitionView(BaseWindow):
         if self.is_recognizing and self.cap is not None:
             ret, frame = self.cap.read()
             if ret:
+                # Start timer
+                start_time = time.perf_counter()
+                
                 # Detect faces
                 faces = self.face_detector.detect_faces(frame)
                 
@@ -94,7 +107,13 @@ class RecognitionView(BaseWindow):
                     # Get predictions
                     student_id, confidence = self.face_detector.predict_face(frame, face_coords)
                     
-                    if confidence > 85:  # Confidence threshold
+                    # Adjusted confidence threshold and display
+                    if confidence > 40:  # More permissive threshold
+                        recognition_time = (time.perf_counter() - start_time) * 1000
+                        self.recognition_times.append(recognition_time)
+                        avg_time = sum(self.recognition_times[-10:]) / min(len(self.recognition_times), 10)
+                        self.time_label.configure(text=f"Recognition time: {avg_time:.1f} ms")
+                        
                         try:
                             # Get student info from database
                             with DatabaseConnection() as cursor:
@@ -108,16 +127,25 @@ class RecognitionView(BaseWindow):
                                 # Mark attendance
                                 self.mark_attendance(student_id)
                                 
-                                # Draw on frame
+                                # Enhanced display
                                 x, y, w, h = face_coords
-                                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                                cv2.putText(frame, name, (x, y-10), 
-                                          cv2.FONT_HERSHEY_SIMPLEX, 0.9, 
-                                          (0, 255, 0), 2)
+                                color = (0, 255, 0) if confidence > 60 else (0, 255, 255)
+                                cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+                                cv2.putText(frame, f"{name} ({confidence:.0f}%)", 
+                                          (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, 
+                                          color, 2)
                                 
+                                # Update status
+                                self.status_label.configure(text=f"Detected: {name}")
                         except Exception as e:
                             logging.error(f"Database error: {e}")
-                    
+                    else:
+                        # Draw unrecognized face
+                        x, y, w, h = face_coords
+                        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                        cv2.putText(frame, "Unknown", (x, y-10),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+                
                 # Convert to CTkImage
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 pil_img = Image.fromarray(frame)

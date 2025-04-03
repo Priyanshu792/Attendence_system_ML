@@ -74,7 +74,7 @@ class ModernFaceRecognition(BaseWindow):
             
         welcome = ctk.CTkLabel(
             self.content,
-            text="Welcome to Modern Face Recognition System",
+            text="Face Recognition System",
             font=("Helvetica", 24, "bold")
         )
         welcome.pack(pady=20)
