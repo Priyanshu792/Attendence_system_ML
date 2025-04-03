@@ -1,0 +1,42 @@
+2025-04-04 00:08:43,263 - root - INFO - Database initialized successfully
+2025-04-04 00:09:00,648 - root - ERROR - Training error: name 'files' is not defined
+2025-04-04 00:10:04,378 - root - INFO - Database initialized successfully
+2025-04-04 00:10:28,957 - root - INFO - Found 300 training images
+2025-04-04 00:10:29,053 - root - INFO - Student ID 1: 100 images
+2025-04-04 00:10:29,053 - root - INFO - Student ID 46654: 100 images
+2025-04-04 00:10:29,053 - root - INFO - Student ID 651: 100 images
+2025-04-04 00:10:29,056 - root - INFO - Starting preprocessing of 300 images
+2025-04-04 00:10:29,083 - root - INFO - Successfully preprocessed 300 faces
+2025-04-04 00:10:30,126 - root - INFO - Training completed in 1071.61ms
+2025-04-04 00:10:30,128 - root - INFO - 
+Training Performance:
+-------------------
+Data Loading Time: 99.64ms "Time taken to load data from the database and prepare it for training"
+Model Training Time: 1071.61ms "Time taken to train the model on the preprocessed data and save it to disk"
+Total Images: 300
+Images/Second: 280.0
+Student IDs: [1, 651, 46654]
+Images per Student: Counter({1: 100, 46654: 100, 651: 100})
+-------------------
+
+2025-04-04 00:10:31,174 - root - INFO - Model saved to: c:\Users\priya\OneDrive\Desktop\ASSIGNMENT_PRACTICALS_SEMINARS\BTECH\7th Sem\Major Project\Download\Face-Recognition-based-Attendence-Management-System-main\Face-Recognition-based-Attendence-Management-System-main\face_recognition_v2\data\models\classifier.xml
+2025-04-04 00:15:31,535 - root - INFO - Database initialized successfully
+2025-04-04 00:16:16,859 - root - INFO - Found 300 training images
+2025-04-04 00:16:16,961 - root - INFO - Student ID 1: 100 images
+2025-04-04 00:16:16,962 - root - INFO - Student ID 46654: 100 images
+2025-04-04 00:16:16,962 - root - INFO - Student ID 651: 100 images
+2025-04-04 00:16:16,962 - root - INFO - Starting preprocessing of 300 images
+2025-04-04 00:16:16,990 - root - INFO - Successfully preprocessed 300 faces
+2025-04-04 00:16:17,958 - root - INFO - Training completed in 995.60ms
+2025-04-04 00:16:17,959 - root - INFO - 
+Training Performance:
+-------------------
+Data Loading Time: 105.78ms
+Model Training Time: 995.60ms
+Total Images: 300
+Images/Second: 301.3
+Student IDs: [1, 651, 46654]
+Images per Student: Counter({1: 100, 46654: 100, 651: 100})
+-------------------
+
+2025-04-04 00:16:19,012 - root - INFO - Model saved to: c:\Users\priya\OneDrive\Desktop\ASSIGNMENT_PRACTICALS_SEMINARS\BTECH\7th Sem\Major Project\Download\Face-Recognition-based-Attendence-Management-System-main\Face-Recognition-based-Attendence-Management-System-main\face_recognition_v2\data\models\classifier.xml

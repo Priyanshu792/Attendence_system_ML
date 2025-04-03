@@ -5,6 +5,7 @@ import logging
 import os
 import urllib.request
 from pathlib import Path
+import time  # Add this import
 
 class FaceDetector:
     CASCADE_URL = "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
@@ -26,9 +27,14 @@ class FaceDetector:
         self.face_cascade = cv2.CascadeClassifier(cascade_path)
         self.recognizer = cv2.face.LBPHFaceRecognizer_create()
         self.model_loaded = False
+        self.performance_stats = {
+            'face_detection': [],
+            'recognition': [],
+            'training': None
+        }
 
     def detect_faces(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
-        """Detect faces in frame and return list of (x,y,w,h) coordinates"""
+        start_time = time.perf_counter()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.equalizeHist(gray)
         
@@ -40,10 +46,12 @@ class FaceDetector:
             maxSize=(300, 300),     # Add maximum size
             flags=cv2.CASCADE_SCALE_IMAGE
         )
+        detection_time = (time.perf_counter() - start_time) * 1000
+        self.performance_stats['face_detection'].append(detection_time)
         return faces
 
     def predict_face(self, frame: np.ndarray, face_coords: Tuple[int, int, int, int]) -> Tuple[int, float]:
-        """Predict identity of face in frame"""
+        start_time = time.perf_counter()
         if not self.model_loaded:
             return -1, 0.0
             
@@ -59,6 +67,8 @@ class FaceDetector:
             id_, confidence = self.recognizer.predict(roi)
             # Confidence is 0-100 where lower is better in OpenCV
             confidence = 100 - min(100, confidence)
+            prediction_time = (time.perf_counter() - start_time) * 1000
+            self.performance_stats['recognition'].append(prediction_time)
             return int(id_), confidence
         except Exception as e:
             logging.error(f"Prediction error: {e}")
@@ -66,26 +76,53 @@ class FaceDetector:
 
     def train_recognizer(self, faces: List[np.ndarray], labels: List[int]):
         """Train the face recognizer"""
-        processed_faces = []
-        for face in faces:
-            if face is not None:
-                face = cv2.equalizeHist(face)
-                face = cv2.resize(face, (200, 200))
-                processed_faces.append(face)
+        try:
+            start_time = time.perf_counter()
             
-        if not processed_faces:
-            raise ValueError("No valid faces for training")
+            processed_faces = []
+            processed_labels = []
             
-        self.recognizer = cv2.face.LBPHFaceRecognizer_create(
-            radius=1,           # Smaller radius for more detail
-            neighbors=8,        # Standard number of points
-            grid_x=8,          # Standard grid
-            grid_y=8,          # Standard grid
-            threshold=100.0     # Higher threshold for better matching
-        )
-        self.recognizer.train(processed_faces, np.array(labels))
-        self.model_loaded = True
-        
+            # Log preprocessing info
+            logging.info(f"Starting preprocessing of {len(faces)} images")
+            
+            for face, label in zip(faces, labels):
+                if face is not None and face.size > 0:
+                    try:
+                        face = cv2.equalizeHist(face)
+                        face = cv2.resize(face, (200, 200))
+                        processed_faces.append(face)
+                        processed_labels.append(label)
+                    except Exception as e:
+                        logging.warning(f"Failed to process face for ID {label}: {e}")
+            
+            if not processed_faces:
+                raise ValueError("No valid faces for training")
+            
+            logging.info(f"Successfully preprocessed {len(processed_faces)} faces")
+            
+            # Create and train recognizer
+            self.recognizer = cv2.face.LBPHFaceRecognizer_create(
+                radius=1,
+                neighbors=8,
+                grid_x=8,
+                grid_y=8,
+                threshold=100.0
+            )
+            
+            self.recognizer.train(processed_faces, np.array(processed_labels))
+            self.model_loaded = True
+            
+            # Calculate and store training time
+            training_time = (time.perf_counter() - start_time) * 1000
+            self.performance_stats['training'] = training_time
+            
+            # Log success
+            logging.info(f"Training completed in {training_time:.2f}ms")
+            
+        except Exception as e:
+            logging.error(f"Training failed: {e}")
+            raise
+
     def save_trained_model(self, path: str = None):
         """Save trained model to file"""
         if path is None:

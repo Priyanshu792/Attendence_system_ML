@@ -8,6 +8,7 @@ from tkinter import messagebox
 from pathlib import Path
 from collections import Counter
 import random
+import time
 
 from src.core.base_window import BaseWindow
 from src.utils.face_utils import FaceDetector
@@ -58,8 +59,9 @@ class TrainingView(BaseWindow):
             self.status_label.configure(text="Loading training data...")
             self.progress.set(0.2)
             
-            # Load face data
+            start_time = time.perf_counter()
             faces, ids = self._load_training_data()
+            load_time = (time.perf_counter() - start_time) * 1000
             
             if not faces:
                 raise ValueError("No training data found")
@@ -69,20 +71,43 @@ class TrainingView(BaseWindow):
             
             # Train model
             self.face_detector.train_recognizer(faces, ids)
+            training_time = self.face_detector.performance_stats.get('training', 0)
+            
+            if training_time > 0:  # Avoid division by zero
+                images_per_second = len(faces) / (training_time / 1000)
+            else:
+                images_per_second = 0
+                
+            # Log detailed timing information
+            performance_log = f"""
+Training Performance:
+-------------------
+Data Loading Time: {load_time:.2f}ms
+Model Training Time: {training_time:.2f}ms
+Total Images: {len(faces)}
+Images/Second: {images_per_second:.1f}
+Student IDs: {sorted(set(ids))}
+Images per Student: {Counter(ids)}
+-------------------
+"""
+            logging.info(performance_log)
             
             self.status_label.configure(text="Saving model...")
             self.progress.set(0.8)
             
             # Save model
-            self.face_detector.save_trained_model()
+            model_path = self.face_detector.save_trained_model()
+            logging.info(f"Model saved to: {model_path}")
             
             self.status_label.configure(text="Training completed successfully")
             self.progress.set(1.0)
             
         except Exception as e:
-            logging.error(f"Training error: {e}")
-            self.status_label.configure(text=f"Error: {str(e)}")
+            error_msg = f"Training error: {str(e)}"
+            logging.error(error_msg)
+            self.status_label.configure(text=error_msg)
             self.progress.set(0)
+            messagebox.showerror("Error", error_msg)
 
     def _load_training_data(self):
         """Load training images and prepare data"""
@@ -92,21 +117,31 @@ class TrainingView(BaseWindow):
         data_dir = Path(__file__).parent.parent.parent / "data" / "training_images"
         if not data_dir.exists():
             raise ValueError("No training data directory found")
+        
+        # Get list of files first
+        files = [f for f in os.listdir(data_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
+        
+        # Add logging for data loading process
+        logging.info(f"Found {len(files)} training images")
             
-        for image_file in os.listdir(data_dir):
-            if image_file.endswith(('.jpg', '.jpeg', '.png')):
-                path = os.path.join(data_dir, image_file)
-                img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-                try:
-                    id_num = int(image_file.split('.')[1])
-                    faces.append(img)
-                    ids.append(id_num)
-                except:
-                    logging.warning(f"Skipping invalid filename: {image_file}")
+        # Process each file
+        for image_file in files:
+            path = os.path.join(data_dir, image_file)
+            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+            try:
+                id_num = int(image_file.split('.')[1])
+                faces.append(img)
+                ids.append(id_num)
+            except:
+                logging.warning(f"Skipping invalid filename: {image_file}")
                     
         if not faces:
             raise ValueError("No valid training images found")
-                    
+        
+        # Log statistics for each student
+        for id_num, count in Counter(ids).items():
+            logging.info(f"Student ID {id_num}: {count} images")
+        
         return faces, ids
 
     def save_trained_model(self):
